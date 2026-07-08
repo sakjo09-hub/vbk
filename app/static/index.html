@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Виртуальная Букмекерская Контора</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+
+    <div id="auth-view" class="auth-wrap">
+        <div class="auth-card">
+            <div class="auth-logo">ВБК</div>
+            <h1>Виртуальная Букмекерская Контора</h1>
+            <p class="auth-subtitle">Тренируйте спортивную аналитику без реальных денег</p>
+
+            <div class="tabs">
+                <button class="tab active" data-tab="login">Вход</button>
+                <button class="tab" data-tab="register">Регистрация</button>
+            </div>
+
+            <form id="login-form" class="auth-form">
+                <label class="field">
+                    <span>Email</span>
+                    <input type="email" name="email" required placeholder="you@example.com" autocomplete="email">
+                </label>
+                <label class="field">
+                    <span>Пароль</span>
+                    <input type="password" name="password" required placeholder="••••••" autocomplete="current-password">
+                </label>
+                <button type="submit" class="btn btn-primary btn-block">Войти</button>
+                <p class="auth-hint">Демо-доступ: <strong>demo@example.com</strong> / <strong>demo123</strong></p>
+            </form>
+
+            <form id="register-form" class="auth-form" hidden>
+                <label class="field">
+                    <span>Имя пользователя</span>
+                    <input type="text" name="username" required minlength="3" maxlength="64" placeholder="ivan_pro">
+                </label>
+                <label class="field">
+                    <span>Email</span>
+                    <input type="email" name="email" required placeholder="you@example.com">
+                </label>
+                <label class="field">
+                    <span>Пароль</span>
+                    <input type="password" name="password" required minlength="6" placeholder="минимум 6 символов">
+                </label>
+                <button type="submit" class="btn btn-primary btn-block">Зарегистрироваться</button>
+                <p class="auth-hint">При регистрации выдаётся <strong>10 000 VC</strong> стартового баланса</p>
+            </form>
+
+            <p id="auth-error" class="auth-error" hidden></p>
+        </div>
+    </div>
+
+    <div id="app-view" class="app-wrap" hidden>
+        <nav class="navbar">
+            <div class="nav-brand">
+                <span class="brand-badge">ВБК</span>
+                <span class="brand-name">Виртуальная БК</span>
+            </div>
+            <div class="nav-links">
+                <a href="#/events" class="nav-link" data-route="events">События</a>
+                <a href="#/bets" class="nav-link" data-route="bets">Мои ставки</a>
+                <a href="#/wallet" class="nav-link" data-route="wallet">Кошелёк</a>
+            </div>
+            <div class="nav-right">
+                <div class="nav-balance" id="nav-balance" title="Баланс виртуальной валюты">
+                    <span class="balance-label">Баланс</span>
+                    <span class="balance-value" id="balance-value">—</span>
+                </div>
+                <button class="btn btn-ghost" id="logout-btn">Выйти</button>
+            </div>
+        </nav>
+
+        <main id="content" class="content"></main>
+    </div>
+
+    <div id="bet-modal" class="modal-backdrop" hidden>
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Сделать ставку</h3>
+                <button class="modal-close" id="bet-modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="bet-modal-body"></div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast" hidden></div>
+
+    <script type="module" src="/static/js/app.js"></script>
+</body>
+</html>

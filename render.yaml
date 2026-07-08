@@ -1,0 +1,43 @@
+databases:
+  - name: betting-db
+    databaseName: betting_virtual
+    plan: free
+    ipAllowList: []
+
+services:
+  - type: web
+    name: vbk
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    releaseCommand: alembic upgrade head
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: betting-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ODDS_API_KEY
+        sync: false
+      - key: VIRTUAL_CURRENCY_CODE
+        value: VC
+      - key: VIRTUAL_STARTING_BALANCE
+        value: "10000"
+      - key: FOOTBALL_PROVIDER
+        value: odds_api
+      - key: DOTA_PROVIDER
+        value: mock
+      - key: ODDS_API_FOOTBALL_SPORTS
+        value: soccer_fifa_world_cup,soccer_epl,soccer_spain_la_liga
+      - key: ODDS_API_REGIONS
+        value: eu
+      - key: SCHEDULER_FETCH_INTERVAL_MINUTES
+        value: "360"
+      - key: SCHEDULER_SETTLE_INTERVAL_MINUTES
+        value: "60"
+      - key: SETTLE_GRACE_MINUTES
+        value: "120"
