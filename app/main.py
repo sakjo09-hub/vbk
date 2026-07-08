@@ -36,14 +36,13 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def on_startup() -> None:
+    await _cleanup_mock_events()
     start_scheduler()
     asyncio.create_task(_initial_fetch_if_empty())
-    asyncio.create_task(_cleanup_stale_mock_events())
 
 
-async def _cleanup_stale_mock_events() -> None:
-    """Удаляет все mock-события при активном реальном провайдере."""
-    await asyncio.sleep(5)
+async def _cleanup_mock_events() -> None:
+    """Удаляет все mock-события если активен реальный провайдер."""
     log = logging.getLogger(__name__)
     try:
         async with async_session_factory() as db:
@@ -56,7 +55,9 @@ async def _cleanup_stale_mock_events() -> None:
                     select(Event.id).where(Event.provider == mock_key)
                 )).scalars().all()
                 if not mock_ids:
+                    log.info("mock_%s: событий нет, пропускаем", sport)
                     continue
+                log.info("mock_%s: найдено %s событий для удаления", sport, len(mock_ids))
                 market_ids = (await db.execute(
                     select(Market.id).where(Market.event_id.in_(mock_ids))
                 )).scalars().all()
@@ -68,9 +69,9 @@ async def _cleanup_stale_mock_events() -> None:
                     )
                 await db.execute(delete(Event).where(Event.id.in_(mock_ids)))
                 await db.commit()
-                log.info("Удалено mock_%s событий: %s", sport, len(mock_ids))
+                log.info("mock_%s: удалено %s событий", sport, len(mock_ids))
     except Exception as e:
-        log.warning("cleanup mock events failed: %s", e)
+        log.error("cleanup mock events failed: %s", e, exc_info=True)
 
 
 async def _initial_fetch_if_empty() -> None:
