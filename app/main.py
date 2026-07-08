@@ -6,12 +6,12 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 
 from app.api import admin, auth, bets, events, wallet
 from app.config import settings
 from app.database import async_session_factory
-from app.models import Event
+from app.models import Bet, Event, Market, Selection
 from app.providers.registry import get_provider
 from app.workers.scheduler import job_fetch_upcoming, start_scheduler, stop_scheduler
 
@@ -38,6 +38,42 @@ app.add_middleware(
 async def on_startup() -> None:
     start_scheduler()
     asyncio.create_task(_initial_fetch_if_empty())
+    asyncio.create_task(_cleanup_stale_mock_events())
+
+
+async def _cleanup_stale_mock_events() -> None:
+    """Удаляет старые mock-события при смене провайдера (только те, на которые не было ставок)."""
+    await asyncio.sleep(5)
+    try:
+        async with async_session_factory() as db:
+            for sport in ("football", "dota"):
+                provider = get_provider(sport)
+                if provider is None or provider.name.startswith("mock_"):
+                    continue
+                mock_ids_result = await db.execute(
+                    select(Event.id).where(Event.provider == f"mock_{sport}")
+                )
+                mock_ids = mock_ids_result.scalars().all()
+                if not mock_ids:
+                    continue
+                bet_event_ids_result = await db.execute(
+                    select(Market.event_id).join(Selection).join(Bet).where(Market.event_id.in_(mock_ids))
+                )
+                bet_event_ids = set(bet_event_ids_result.scalars().all())
+                safe_ids = [eid for eid in mock_ids if eid not in bet_event_ids]
+                if not safe_ids:
+                    continue
+                await db.execute(
+                    delete(Selection).where(Selection.market_id.in_(
+                        select(Market.id).where(Market.event_id.in_(safe_ids))
+                    ))
+                )
+                await db.execute(delete(Market).where(Market.event_id.in_(safe_ids)))
+                await db.execute(delete(Event).where(Event.id.in_(safe_ids)))
+                await db.commit()
+                logging.getLogger(__name__).info("Удалено mock_%s событий без ставок: %s", sport, len(safe_ids))
+    except Exception as e:
+        logging.getLogger(__name__).warning("cleanup mock events failed: %s", e)
 
 
 async def _initial_fetch_if_empty() -> None:
