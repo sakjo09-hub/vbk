@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 
@@ -5,10 +6,13 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import func, select
 
 from app.api import auth, bets, events, wallet
 from app.config import settings
-from app.workers.scheduler import start_scheduler, stop_scheduler
+from app.database import async_session_factory
+from app.models import Event
+from app.workers.scheduler import job_fetch_upcoming, start_scheduler, stop_scheduler
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -32,6 +36,20 @@ app.add_middleware(
 @app.on_event("startup")
 async def on_startup() -> None:
     start_scheduler()
+    asyncio.create_task(_initial_fetch_if_empty())
+
+
+async def _initial_fetch_if_empty() -> None:
+    """При первом запуске (пустая БД) сразу импортирует события,
+    чтобы сайт не был пустым. На квоту не влияет: срабатывает только раз."""
+    await asyncio.sleep(3)
+    try:
+        async with async_session_factory() as db:
+            count = (await db.execute(select(func.count()).select_from(Event))).scalar()
+        if not count:
+            await job_fetch_upcoming()
+    except Exception as e:
+        logging.getLogger(__name__).warning("initial fetch failed: %s", e)
 
 
 @app.on_event("shutdown")
