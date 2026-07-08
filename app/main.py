@@ -49,7 +49,10 @@ async def _initial_fetch_if_empty() -> None:
             football = (await db.execute(
                 select(func.count()).select_from(Event).where(Event.sport == "football")
             )).scalar()
-        if not total or not football:
+            dota = (await db.execute(
+                select(func.count()).select_from(Event).where(Event.sport == "dota")
+            )).scalar()
+        if not total or not football or not dota:
             await job_fetch_upcoming()
     except Exception as e:
         logging.getLogger(__name__).warning("initial fetch failed: %s", e)

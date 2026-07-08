@@ -4,6 +4,7 @@ from app.providers.dota import DotaParserProvider
 from app.providers.football import FootballParserProvider
 from app.providers.mock import MockProvider
 from app.providers.odds_api import OddsApiProvider
+from app.providers.pandascore import PandascoreProvider
 
 
 def get_provider(sport: str) -> BaseProvider | None:
@@ -18,6 +19,8 @@ def get_provider(sport: str) -> BaseProvider | None:
         return MockProvider(sport)
     if choice == "odds_api":
         return OddsApiProvider(sport)
+    if choice == "pandascore":
+        return PandascoreProvider(sport)
     if sport == "football":
         return FootballParserProvider()
     if sport == "dota":

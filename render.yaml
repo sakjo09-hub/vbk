@@ -31,7 +31,9 @@ services:
       - key: FOOTBALL_PROVIDER
         value: odds_api
       - key: DOTA_PROVIDER
-        value: mock
+        value: pandascore
+      - key: PANDASCORE_API_KEY
+        sync: false
       - key: ODDS_API_FOOTBALL_SPORTS
         value: soccer_fifa_world_cup,soccer_epl,soccer_spain_la_liga
       - key: ODDS_API_REGIONS

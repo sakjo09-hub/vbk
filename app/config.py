@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     ODDS_API_FOOTBALL_SPORTS: str = "soccer_epl,soccer_uefa_champs_league"
     ODDS_API_DOTA_SPORTS: str = ""
 
+    PANDASCORE_API_KEY: str = ""
+
     SCHEDULER_FETCH_INTERVAL_MINUTES: int = 30
     SCHEDULER_SETTLE_INTERVAL_MINUTES: int = 5
     SETTLE_GRACE_MINUTES: int = 120
