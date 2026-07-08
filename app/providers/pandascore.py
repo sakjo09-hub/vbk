@@ -61,11 +61,17 @@ class PandascoreProvider(BaseProvider):
             remaining = resp.headers.get("x-ratelimit-remaining")
             if remaining:
                 logger.info("[%s] PandaScore квота: осталось %s", self.name, remaining)
+            logger.info("[%s] %s → status=%s len=%s", self.name, path, resp.status_code,
+                        resp.headers.get("content-length") or len(resp.text))
             if resp.status_code == 429:
                 logger.warning("[%s] превышен лимит PandaScore (429)", self.name)
                 return None
-            resp.raise_for_status()
-            return resp.json()
+            if resp.status_code != 200:
+                logger.warning("[%s] ошибка API: %s — %s", self.name, resp.status_code, resp.text[:500])
+                return None
+            body = resp.json()
+            logger.info("[%s] получено объектов: %s", self.name, len(body) if isinstance(body, list) else "—")
+            return body
 
     async def fetch_upcoming(self) -> list[RawEvent]:
         data = await self._get(f"/{self._game}/matches/upcoming", {"per_page": 30})

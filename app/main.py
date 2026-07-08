@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select
 
-from app.api import auth, bets, events, wallet
+from app.api import admin, auth, bets, events, wallet
 from app.config import settings
 from app.database import async_session_factory
 from app.models import Event
@@ -77,6 +77,7 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(events.router, prefix="/api")
 app.include_router(bets.router, prefix="/api")
 app.include_router(wallet.router, prefix="/api")
+app.include_router(admin.router)
 
 if os.path.isdir(STATIC_DIR):
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
