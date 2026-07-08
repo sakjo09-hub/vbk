@@ -42,38 +42,35 @@ async def on_startup() -> None:
 
 
 async def _cleanup_stale_mock_events() -> None:
-    """Удаляет старые mock-события при смене провайдера (только те, на которые не было ставок)."""
+    """Удаляет все mock-события при активном реальном провайдере."""
     await asyncio.sleep(5)
+    log = logging.getLogger(__name__)
     try:
         async with async_session_factory() as db:
             for sport in ("football", "dota"):
                 provider = get_provider(sport)
                 if provider is None or provider.name.startswith("mock_"):
                     continue
-                mock_ids_result = await db.execute(
-                    select(Event.id).where(Event.provider == f"mock_{sport}")
-                )
-                mock_ids = mock_ids_result.scalars().all()
+                mock_key = f"mock_{sport}"
+                mock_ids = (await db.execute(
+                    select(Event.id).where(Event.provider == mock_key)
+                )).scalars().all()
                 if not mock_ids:
                     continue
-                bet_event_ids_result = await db.execute(
-                    select(Market.event_id).join(Selection).join(Bet).where(Market.event_id.in_(mock_ids))
-                )
-                bet_event_ids = set(bet_event_ids_result.scalars().all())
-                safe_ids = [eid for eid in mock_ids if eid not in bet_event_ids]
-                if not safe_ids:
-                    continue
-                await db.execute(
-                    delete(Selection).where(Selection.market_id.in_(
-                        select(Market.id).where(Market.event_id.in_(safe_ids))
-                    ))
-                )
-                await db.execute(delete(Market).where(Market.event_id.in_(safe_ids)))
-                await db.execute(delete(Event).where(Event.id.in_(safe_ids)))
+                market_ids = (await db.execute(
+                    select(Market.id).where(Market.event_id.in_(mock_ids))
+                )).scalars().all()
+                if market_ids:
+                    await db.execute(
+                        delete(Bet).where(Bet.selection_id.in_(
+                            select(Selection.id).where(Selection.market_id.in_(market_ids))
+                        ))
+                    )
+                await db.execute(delete(Event).where(Event.id.in_(mock_ids)))
                 await db.commit()
-                logging.getLogger(__name__).info("Удалено mock_%s событий без ставок: %s", sport, len(safe_ids))
+                log.info("Удалено mock_%s событий: %s", sport, len(mock_ids))
     except Exception as e:
-        logging.getLogger(__name__).warning("cleanup mock events failed: %s", e)
+        log.warning("cleanup mock events failed: %s", e)
 
 
 async def _initial_fetch_if_empty() -> None:
