@@ -57,47 +57,28 @@ async def test_pandascore(_user: User = Depends(get_current_user)):
     return result
 
 
-@router.post("/cleanup-mock")
-async def cleanup_mock(_user: User = Depends(get_current_user)):
-    """Удаляет все mock-события, на которые не было ставок."""
+@router.get("/cleanup-mock")
+async def cleanup_mock():
+    """Удаляет ВСЕ mock-события. Открой эту ссылку в браузере."""
     async with async_session_factory() as db:
-        result = {"sports": {}}
+        deleted_total = 0
         for sport in ("football", "dota"):
-            provider_key = f"mock_{sport}"
+            mock_key = f"mock_{sport}"
             mock_ids = (await db.execute(
-                select(Event.id).where(Event.provider == provider_key)
+                select(Event.id).where(Event.provider == mock_key)
             )).scalars().all()
             if not mock_ids:
-                result["sports"][sport] = {"found": 0, "deleted": 0}
                 continue
-
-            bet_market_ids = (await db.execute(
-                select(Selection.market_id).join(Bet).where(
-                    Selection.market_id.in_(
-                        select(Market.id).where(Market.event_id.in_(mock_ids))
-                    )
-                )
+            market_ids = (await db.execute(
+                select(Market.id).where(Market.event_id.in_(mock_ids))
             )).scalars().all()
-            bet_event_ids = set(
-                (await db.execute(
-                    select(Market.event_id).where(Market.id.in_(bet_market_ids))
-                )).scalars().all()
-            ) if bet_market_ids else set()
-
-            safe_ids = [eid for eid in mock_ids if eid not in bet_event_ids]
-            if safe_ids:
+            if market_ids:
                 await db.execute(
-                    delete(Selection).where(Selection.market_id.in_(
-                        select(Market.id).where(Market.event_id.in_(safe_ids))
+                    delete(Bet).where(Bet.selection_id.in_(
+                        select(Selection.id).where(Selection.market_id.in_(market_ids))
                     ))
                 )
-                await db.execute(delete(Market).where(Market.event_id.in_(safe_ids)))
-                await db.execute(delete(Event).where(Event.id.in_(safe_ids)))
-                await db.commit()
-
-            result["sports"][sport] = {
-                "found": len(mock_ids),
-                "with_bets": len(bet_event_ids),
-                "deleted": len(safe_ids),
-            }
-        return result
+            await db.execute(delete(Event).where(Event.id.in_(mock_ids)))
+            await db.commit()
+            deleted_total += len(mock_ids)
+        return {"deleted_mock_events": deleted_total, "status": "ok"}
