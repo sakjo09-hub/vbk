@@ -12,6 +12,7 @@ from app.api import auth, bets, events, wallet
 from app.config import settings
 from app.database import async_session_factory
 from app.models import Event
+from app.providers.registry import get_provider
 from app.workers.scheduler import job_fetch_upcoming, start_scheduler, stop_scheduler
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -40,20 +41,24 @@ async def on_startup() -> None:
 
 
 async def _initial_fetch_if_empty() -> None:
-    """При первом запуске (или если события для какого-то спорта отсутствуют)
+    """При первом запуске (или если сменился провайдер спорта)
     сразу импортирует события, чтобы сайт не был пустым."""
     await asyncio.sleep(3)
     try:
         async with async_session_factory() as db:
-            total = (await db.execute(select(func.count()).select_from(Event))).scalar()
-            football = (await db.execute(
-                select(func.count()).select_from(Event).where(Event.sport == "football")
-            )).scalar()
-            dota = (await db.execute(
-                select(func.count()).select_from(Event).where(Event.sport == "dota")
-            )).scalar()
-        if not total or not football or not dota:
-            await job_fetch_upcoming()
+            for sport in ("football", "dota"):
+                provider = get_provider(sport)
+                if provider is None:
+                    continue
+                count = (await db.execute(
+                    select(func.count()).select_from(Event).where(
+                        Event.sport == sport,
+                        Event.provider == provider.name,
+                    )
+                )).scalar()
+                if not count:
+                    await job_fetch_upcoming()
+                    return
     except Exception as e:
         logging.getLogger(__name__).warning("initial fetch failed: %s", e)
 
