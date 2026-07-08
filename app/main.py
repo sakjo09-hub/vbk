@@ -40,13 +40,16 @@ async def on_startup() -> None:
 
 
 async def _initial_fetch_if_empty() -> None:
-    """При первом запуске (пустая БД) сразу импортирует события,
-    чтобы сайт не был пустым. На квоту не влияет: срабатывает только раз."""
+    """При первом запуске (или если события для какого-то спорта отсутствуют)
+    сразу импортирует события, чтобы сайт не был пустым."""
     await asyncio.sleep(3)
     try:
         async with async_session_factory() as db:
-            count = (await db.execute(select(func.count()).select_from(Event))).scalar()
-        if not count:
+            total = (await db.execute(select(func.count()).select_from(Event))).scalar()
+            football = (await db.execute(
+                select(func.count()).select_from(Event).where(Event.sport == "football")
+            )).scalar()
+        if not total or not football:
             await job_fetch_upcoming()
     except Exception as e:
         logging.getLogger(__name__).warning("initial fetch failed: %s", e)
