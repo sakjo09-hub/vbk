@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import delete, select
 
 from app.api.deps import get_current_user
@@ -8,6 +8,7 @@ from app.config import settings
 from app.database import async_session_factory
 from app.models import Bet, Event, Market, Selection, User
 from app.providers.pandascore import PandascoreProvider
+from app.services.settlement import settle_event
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -82,3 +83,14 @@ async def cleanup_mock():
             await db.commit()
             deleted_total += len(mock_ids)
         return {"deleted_mock_events": deleted_total, "status": "ok"}
+
+
+@router.get("/settle/{event_id}")
+async def manual_settle(
+    event_id: int,
+    outcome: str = Query(..., description="home / away / draw / void"),
+):
+    """Ручной расчёт события. Открой ссылку вида /admin/settle/5?outcome=home"""
+    async with async_session_factory() as db:
+        settled = await settle_event(db, event_id, outcome)
+        return {"event_id": event_id, "outcome": outcome, "settled_bets": settled}
